@@ -1,5 +1,6 @@
 import { sealChecksum, verifyChecksum } from "./checksum.js";
 import { computeChecksum } from "./checksum.js";
+import { ChecksumError, ValidationError } from "./errors.js";
 import type { Envelope, StateObject, StateChecksumPayload } from "./schema.js";
 import { formatIssues, validateEnvelope, validateState } from "./validate.js";
 
@@ -125,4 +126,48 @@ export function verifyState(value: unknown): {
     };
   }
   return { ok: true, message: "ok", state };
+}
+
+/**
+ * Validate and return the typed state, or throw ValidationError.
+ * Does not check checksum integrity — use `assertSealedState` for that.
+ */
+export function assertValidState(value: unknown): StateObject {
+  const result = validateState(value);
+  if (!result.ok) {
+    throw new ValidationError(
+      `state failed validation:\n${formatIssues(result.issues)}`,
+      result.issues,
+    );
+  }
+  return result.state;
+}
+
+/**
+ * Full accept path: schema + checksum. Throws typed errors on failure.
+ */
+export function assertSealedState(value: unknown): StateObject {
+  const state = assertValidState(value);
+  const expected = computeChecksum(state);
+  if (!verifyChecksum(state)) {
+    throw new ChecksumError(
+      `checksum mismatch: expected ${expected}, got ${state.checksum}`,
+      { expected, actual: state.checksum },
+    );
+  }
+  return state;
+}
+
+/**
+ * Validate and return a typed envelope, or throw ValidationError.
+ */
+export function assertValidEnvelope(value: unknown): Envelope {
+  const result = validateEnvelope(value);
+  if (!result.ok) {
+    throw new ValidationError(
+      `envelope failed validation:\n${formatIssues(result.issues)}`,
+      result.issues,
+    );
+  }
+  return result.envelope;
 }

@@ -31,6 +31,9 @@ export type {
   ValidationResult,
 } from "./validate.js";
 export {
+  assertSealedState,
+  assertValidEnvelope,
+  assertValidState,
   createEnvelope,
   summarizeEnvelope,
   verifyEnvelope,
@@ -43,3 +46,10 @@ export type {
 export { buildExampleState, exampleStateJson } from "./example.js";
 export { diffStates, extractState, formatDiff } from "./diff.js";
 export type { FieldChange, ListChange, StateDiff } from "./diff.js";
+export {
+  ChecksumError,
+  ValidationError,
+  isChecksumError,
+  isValidationError,
+} from "./errors.js";
+export { PUBLIC_API, PUBLIC_API_NAMES } from "./public-api.js";
