@@ -1,0 +1,42 @@
+{
+  "name": "iahp",
+  "version": "0.1.0",
+  "description": "Inter-Agent Handshake Protocol — portable State Objects for agent hand-offs",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "iahp": "dist/cli.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "examples",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "cli": "tsx src/cli.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "agents",
+    "handoff",
+    "protocol",
+    "state-object",
+    "multi-agent",
+    "checksum"
+  ],
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
