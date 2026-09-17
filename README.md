@@ -7,6 +7,19 @@ typed JSON state: goal, constraints, verified facts, artifacts, provenance,
 and a SHA-256 checksum over canonical JSON so the receiver can prove nothing
 was edited in transit.
 
+## Architecture
+
+```mermaid
+flowchart LR
+    A[Agent A] --> B[State Object]
+    B --> C[Canonical JSON]
+    C --> D[Checksum]
+    D --> E[Handoff Envelope]
+    E --> F[Validate]
+    F --> G[Agent B]
+    F --> H[Reject]
+```
+
 ## Install
 
 ```bash
