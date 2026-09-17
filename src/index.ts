@@ -41,3 +41,5 @@ export type {
   EnvelopeIntegrityResult,
 } from "./envelope.js";
 export { buildExampleState, exampleStateJson } from "./example.js";
+export { diffStates, extractState, formatDiff } from "./diff.js";
+export type { FieldChange, ListChange, StateDiff } from "./diff.js";
