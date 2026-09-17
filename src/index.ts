@@ -83,4 +83,18 @@ export type {
   BatchResult,
   BatchSummary,
 } from "./batch.js";
+export {
+  OUTPUT_SCHEMA_VERSION,
+  parseOutputFormat,
+  toJsonLine,
+} from "./format.js";
+export type {
+  ChecksumJson,
+  CliJsonOutput,
+  DiffJson,
+  OutputFormat,
+  ValidateBatchJson,
+  ValidateJson,
+  ValidateStatus,
+} from "./format.js";
 export { PUBLIC_API, PUBLIC_API_NAMES } from "./public-api.js";

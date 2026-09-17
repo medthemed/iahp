@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { formatBatchReport, validateBatch } from "./batch.js";
+import { formatBatchReport, validateBatch, type BatchResult } from "./batch.js";
 import { computeChecksum } from "./checksum.js";
 import {
   CONFIG_FILENAME,
@@ -14,8 +14,18 @@ import {
 import { diffStates, extractState, formatDiff } from "./diff.js";
 import { createEnvelope, summarizeEnvelope, verifyState } from "./envelope.js";
 import { exampleStateJson } from "./example.js";
+import {
+  OUTPUT_SCHEMA_VERSION,
+  parseOutputFormat,
+  type ChecksumJson,
+  type DiffJson,
+  type OutputFormat,
+  type ValidateBatchJson,
+  type ValidateJson,
+  type ValidateStatus,
+} from "./format.js";
 import { scaffoldConfigJson, scaffoldStateJson } from "./init.js";
-import { formatIssues, validateState } from "./validate.js";
+import { formatIssues, validateState, type ValidationIssue } from "./validate.js";
 
 const USAGE = `iahp — Inter-Agent Handshake Protocol
 
@@ -26,13 +36,15 @@ Usage:
   iahp example                 Print an example sealed state object
   iahp seal <state.json>       Print state with a fresh checksum
   iahp summarize <state.json>  One-line log summary
-  iahp diff <a.json> <b.json>  Semantic differences between two states [--json]
+  iahp diff <a.json> <b.json>  Semantic differences between two states
   iahp init [state.json]       Scaffold a sealed State Object [--goal TEXT]
                                [--from AGENT] [--to AGENT] [--config]
                                [--write-config]
 
 Options:
   --config <path>              Use a specific iahp.config.json
+  --format json|text           Output format (default: text). \`--json\` is
+                               a shorthand for \`--format json\`.
   -h, --help                   Show this help
 
 Config (optional iahp.config.json in the working directory):
@@ -82,7 +94,13 @@ function parseArgs(argv: string[]): ParsedArgs {
       process.exit(0);
     } else if (a === "--json" || a === "--write-config") {
       flags[a.slice(2)] = true;
-    } else if (a === "--goal" || a === "--from" || a === "--to" || a === "--config") {
+    } else if (
+      a === "--goal" ||
+      a === "--from" ||
+      a === "--to" ||
+      a === "--config" ||
+      a === "--format"
+    ) {
       const v = argv[++i];
       if (v === undefined) fail(`error: ${a} requires a value`);
       flags[a.slice(2)] = v;
@@ -93,6 +111,20 @@ function parseArgs(argv: string[]): ParsedArgs {
     }
   }
   return { command, positionals, flags };
+}
+
+function resolveOutputFormat(flags: Record<string, string | boolean>): OutputFormat {
+  // --json is a shorthand for --format json
+  if (flags.json === true) return "json";
+  if (typeof flags.format === "string") {
+    try {
+      return parseOutputFormat(flags.format) ?? "text";
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      fail(`error: ${msg}`);
+    }
+  }
+  return "text";
 }
 
 function resolveConfig(explicitPath: string | undefined): IahpConfig {
@@ -107,6 +139,10 @@ function resolveConfig(explicitPath: string | undefined): IahpConfig {
   }
 }
 
+function emitJson(payload: ValidateJson | ChecksumJson | DiffJson | ValidateBatchJson): void {
+  process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
+}
+
 function main(argv: string[]): void {
   const { command, positionals, flags } = parseArgs(argv);
 
@@ -115,12 +151,71 @@ function main(argv: string[]): void {
     return;
   }
 
+  const format = resolveOutputFormat(flags);
+
   switch (command) {
     case "validate": {
       const file = positionals[0];
       if (!file) fail("error: validate requires a file path");
       const data = readJson(file);
       const result = validateState(data);
+
+      if (format === "json") {
+        if (!result.ok) {
+          const payload: ValidateJson = {
+            schema_version: OUTPUT_SCHEMA_VERSION,
+            ok: false,
+            command: "validate",
+            file,
+            status: "schema_invalid",
+            issues: result.issues,
+          };
+          emitJson(payload);
+          process.exit(1);
+        }
+        const config = resolveConfig(
+          typeof flags.config === "string" ? flags.config : undefined,
+        );
+        const requiredIssues = checkRequiredFields(
+          data as Record<string, unknown>,
+          config,
+        );
+        if (requiredIssues.length > 0) {
+          emitJson({
+            schema_version: OUTPUT_SCHEMA_VERSION,
+            ok: false,
+            command: "validate",
+            file,
+            status: "config_invalid",
+            issues: requiredIssues,
+          });
+          process.exit(1);
+        }
+        const integrity = verifyState(data);
+        if (!integrity.ok) {
+          emitJson({
+            schema_version: OUTPUT_SCHEMA_VERSION,
+            ok: false,
+            command: "validate",
+            file,
+            status: "integrity_failed",
+            issues: [],
+            message: integrity.message,
+          });
+          process.exit(2);
+        }
+        emitJson({
+          schema_version: OUTPUT_SCHEMA_VERSION,
+          ok: true,
+          command: "validate",
+          file,
+          status: "ok",
+          issues: [],
+        });
+        return;
+      }
+
+      // text mode (unchanged)
       if (!result.ok) {
         process.stderr.write(`INVALID\n${formatIssues(result.issues)}\n`);
         process.exit(1);
@@ -152,7 +247,7 @@ function main(argv: string[]): void {
       const config = resolveConfig(
         typeof flags.config === "string" ? flags.config : undefined,
       );
-      let batch;
+      let batch: BatchResult;
       try {
         batch = validateBatch(dir, config);
       } catch (err) {
@@ -161,6 +256,24 @@ function main(argv: string[]): void {
       }
       if (batch.summary.total === 0) {
         fail(`error: no .json State Objects found in ${dir}`);
+      }
+      if (format === "json") {
+        const payload: ValidateBatchJson = {
+          schema_version: OUTPUT_SCHEMA_VERSION,
+          ok: batch.ok,
+          command: "validate-batch",
+          dir: batch.dir,
+          files: batch.files.map((f) => ({
+            file: f.file,
+            status: f.status as ValidateStatus | "unreadable",
+            issues: f.issues,
+            ...(f.message !== undefined ? { message: f.message } : {}),
+          })),
+          summary: batch.summary,
+        };
+        emitJson(payload);
+        if (!batch.ok) process.exit(1);
+        return;
       }
       process.stdout.write(`${formatBatchReport(batch)}\n`);
       if (!batch.ok) process.exit(1);
@@ -171,12 +284,34 @@ function main(argv: string[]): void {
       if (!file) fail("error: checksum requires a file path");
       const data = readJson(file);
       const result = validateState(data);
+      const checksum = computeChecksum(data as never);
+
+      if (format === "json") {
+        const issues: ValidationIssue[] = result.ok ? [] : result.issues;
+        if (!result.ok) {
+          process.stderr.write(
+            `warning: state failed schema validation; computing checksum anyway\n${formatIssues(issues)}\n`,
+          );
+        }
+        const payload: ChecksumJson = {
+          schema_version: OUTPUT_SCHEMA_VERSION,
+          ok: true,
+          command: "checksum",
+          file,
+          checksum,
+          schema_ok: result.ok,
+          issues,
+        };
+        emitJson(payload);
+        return;
+      }
+
       if (!result.ok) {
         process.stderr.write(
           `warning: state failed schema validation; computing checksum anyway\n${formatIssues(result.issues)}\n`,
         );
       }
-      process.stdout.write(`${computeChecksum(data as never)}\n`);
+      process.stdout.write(`${checksum}\n`);
       return;
     }
     case "example": {
@@ -205,9 +340,7 @@ function main(argv: string[]): void {
       return;
     }
     case "diff": {
-      const args = positionals.filter((a) => a !== "--json");
-      const asJson = positionals.includes("--json") || flags.json === true;
-      const [fileA, fileB] = args;
+      const [fileA, fileB] = positionals;
       if (!fileA || !fileB) {
         fail("error: diff requires two file paths");
       }
@@ -218,11 +351,20 @@ function main(argv: string[]): void {
       if (!stateA) fail(`error: ${fileA} does not look like a State Object or Envelope`);
       if (!stateB) fail(`error: ${fileB} does not look like a State Object or Envelope`);
       const diff = diffStates(stateA, stateB);
-      if (asJson) {
-        process.stdout.write(`${JSON.stringify(diff, null, 2)}\n`);
-      } else {
-        process.stdout.write(`${formatDiff(diff)}\n`);
+      if (format === "json") {
+        const payload: DiffJson = {
+          schema_version: OUTPUT_SCHEMA_VERSION,
+          ok: true,
+          command: "diff",
+          file_a: fileA,
+          file_b: fileB,
+          equal: diff.equal,
+          diff,
+        };
+        emitJson(payload);
+        return;
       }
+      process.stdout.write(`${formatDiff(diff)}\n`);
       return;
     }
     case "init": {

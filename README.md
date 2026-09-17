@@ -77,13 +77,13 @@ npm run cli -- example
 ## CLI
 
 ```text
-iahp validate <state.json>        # structure + checksum
-iahp validate-batch <dir>         # validate every *.json in a directory
-iahp checksum <state.json>        # print SHA-256 of canonical state
+iahp validate <state.json>        # structure + checksum [--format json]
+iahp validate-batch <dir>         # validate every *.json in a directory [--format json]
+iahp checksum <state.json>        # print SHA-256 of canonical state [--format json]
 iahp example                      # emit a sealed example state
 iahp seal <state.json>            # recompute and attach checksum
 iahp summarize <state.json>       # one-line handoff log summary
-iahp diff <a.json> <b.json>       # semantic differences [--json]
+iahp diff <a.json> <b.json>       # semantic differences [--format json]
 iahp init [state.json]            # scaffold a sealed State Object
 ```
 
@@ -148,12 +148,42 @@ console.log(formatBatchReport(batch));
 # human-readable change list
 node dist/cli.js diff before.json after.json
 
-# machine-readable
-node dist/cli.js diff before.json after.json --json
+# machine-readable (stable envelope)
+node dist/cli.js diff before.json after.json --format json
 ```
 
 Diff accepts either bare State Objects or envelopes. Checksums are ignored
 on purpose so only semantic changes surface.
+
+## JSON pipe contract
+
+`validate`, `validate-batch`, `checksum`, and `diff` accept `--format json`
+(`--json` is a shorthand). Every payload is a small envelope:
+
+```json
+{
+  "schema_version": "1",
+  "ok": true,
+  "command": "validate",
+  "...": "command-specific fields"
+}
+```
+
+`schema_version` is currently `"1"`. Additive fields may appear later;
+existing fields will not be renamed or removed within the same major
+schema version. Exit codes are unchanged by `--format json`.
+
+| Command | Extra fields |
+|---|---|
+| `validate` | `file`, `status` (`ok` \| `schema_invalid` \| `config_invalid` \| `integrity_failed`), `issues`, optional `message` |
+| `validate-batch` | `dir`, `files[]`, `summary` |
+| `checksum` | `file`, `checksum`, `schema_ok`, `issues` |
+| `diff` | `file_a`, `file_b`, `equal`, `diff` (full `StateDiff`) |
+
+```bash
+# pipe-friendly: jq exits non-zero when ok is false
+node dist/cli.js validate state.json --format json | jq -e .ok
+```
 
 ## Library
 
