@@ -1,7 +1,7 @@
 # iahp — Inter-Agent Handshake Protocol
 
 [![CI](https://github.com/medthemed/iahp/actions/workflows/ci.yml/badge.svg)](https://github.com/medthemed/iahp/actions/workflows/ci.yml)
-[![npm version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/medthemed/iahp/releases)
+[![npm version](https://img.shields.io/badge/version-0.1.1-blue.svg)](https://github.com/medthemed/iahp/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 Portable, checksummed **State Objects** for agent-to-agent hand-offs.
