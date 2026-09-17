@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { formatBatchReport, validateBatch } from "./batch.js";
 import { computeChecksum } from "./checksum.js";
 import {
   CONFIG_FILENAME,
@@ -20,6 +21,7 @@ const USAGE = `iahp — Inter-Agent Handshake Protocol
 
 Usage:
   iahp validate <state.json>   Validate structure (and checksum if present)
+  iahp validate-batch <dir>    Validate every *.json State Object in a directory
   iahp checksum <state.json>   Print SHA-256 checksum of canonical state
   iahp example                 Print an example sealed state object
   iahp seal <state.json>       Print state with a fresh checksum
@@ -142,6 +144,26 @@ function main(argv: string[]): void {
         process.exit(2);
       }
       process.stdout.write("OK\n");
+      return;
+    }
+    case "validate-batch": {
+      const dir = positionals[0];
+      if (!dir) fail("error: validate-batch requires a directory path");
+      const config = resolveConfig(
+        typeof flags.config === "string" ? flags.config : undefined,
+      );
+      let batch;
+      try {
+        batch = validateBatch(dir, config);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        fail(`error: ${msg}`);
+      }
+      if (batch.summary.total === 0) {
+        fail(`error: no .json State Objects found in ${dir}`);
+      }
+      process.stdout.write(`${formatBatchReport(batch)}\n`);
+      if (!batch.ok) process.exit(1);
       return;
     }
     case "checksum": {

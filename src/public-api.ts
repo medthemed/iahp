@@ -50,6 +50,12 @@ import {
   scaffoldState,
   scaffoldStateJson,
 } from "./init.js";
+import {
+  classifyStateData,
+  formatBatchReport,
+  listStateFiles,
+  validateBatch,
+} from "./batch.js";
 
 /** Frozen catalog of runtime values in the public API. */
 export const PUBLIC_API = Object.freeze({
@@ -104,6 +110,11 @@ export const PUBLIC_API = Object.freeze({
   scaffoldConfigJson,
   scaffoldState,
   scaffoldStateJson,
+  // batch
+  classifyStateData,
+  formatBatchReport,
+  listStateFiles,
+  validateBatch,
 });
 
 /** Sorted list of public export names (types are compile-time only). */
