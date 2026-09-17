@@ -1,0 +1,48 @@
+{
+  "schema_version": "1.0.0",
+  "id": "st_ship_demo_042",
+  "goal": "Ship the v0.2 release notes and tag the repository.",
+  "constraints": [
+    "Do not publish without maintainer review",
+    "All linked PRs must be merged"
+  ],
+  "verified_facts": [
+    {
+      "claim": "CI is green on main at abc1234",
+      "method": "github actions check",
+      "verified_at": "2026-01-15T18:02:00.000Z",
+      "confidence": 1
+    },
+    {
+      "claim": "CHANGELOG has an Unreleased section ready",
+      "method": "manual read",
+      "verified_at": "2026-01-15T18:05:00.000Z",
+      "confidence": 0.9
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "art_notes_md",
+      "name": "release-notes-v0.2.md",
+      "media_type": "text/markdown",
+      "uri": "repo://docs/releases/v0.2.md"
+    }
+  ],
+  "provenance": [
+    {
+      "actor": "agent-release",
+      "at": "2026-01-15T18:02:00.000Z",
+      "action": "verified CI",
+      "ref": "ci://actions/runs/998877"
+    },
+    {
+      "actor": "agent-release",
+      "at": "2026-01-15T18:06:00.000Z",
+      "action": "handed off to maintainer agent",
+      "ref": "handoff://maintainer-review"
+    }
+  ],
+  "handoff_from": "agent-release",
+  "handoff_to": "agent-maintainer",
+  "checksum": "af55001c390b48ce4fb380ba9f231d54ff8ef9ccaa6582f513c9fd612f69b583"
+}
