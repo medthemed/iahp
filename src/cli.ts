@@ -2,6 +2,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { computeChecksum } from "./checksum.js";
+import { diffStates, extractState, formatDiff } from "./diff.js";
 import { createEnvelope, summarizeEnvelope, verifyState } from "./envelope.js";
 import { exampleStateJson } from "./example.js";
 import { formatIssues, validateState } from "./validate.js";
@@ -14,6 +15,7 @@ Usage:
   iahp example                 Print an example sealed state object
   iahp seal <state.json>       Print state with a fresh checksum
   iahp summarize <state.json>  One-line log summary
+  iahp diff <a.json> <b.json>  Semantic differences between two states [--json]
 
 Options:
   -h, --help                   Show this help
@@ -103,6 +105,27 @@ function main(argv: string[]): void {
         created_at: typeof data.created_at === "string" ? data.created_at : undefined,
       });
       process.stdout.write(`${summarizeEnvelope(env)}\n`);
+      return;
+    }
+    case "diff": {
+      const args = rest.filter((a) => a !== "--json");
+      const asJson = rest.includes("--json");
+      const [fileA, fileB] = args;
+      if (!fileA || !fileB) {
+        fail("error: diff requires two file paths");
+      }
+      const rawA = readJson(fileA);
+      const rawB = readJson(fileB);
+      const stateA = extractState(rawA);
+      const stateB = extractState(rawB);
+      if (!stateA) fail(`error: ${fileA} does not look like a State Object or Envelope`);
+      if (!stateB) fail(`error: ${fileB} does not look like a State Object or Envelope`);
+      const diff = diffStates(stateA, stateB);
+      if (asJson) {
+        process.stdout.write(`${JSON.stringify(diff, null, 2)}\n`);
+      } else {
+        process.stdout.write(`${formatDiff(diff)}\n`);
+      }
       return;
     }
     default:
