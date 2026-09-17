@@ -33,6 +33,23 @@ import {
   isChecksumError,
   isValidationError,
 } from "./errors.js";
+import {
+  CONFIG_FILENAME,
+  ConfigError,
+  DEFAULT_CONFIG,
+  REQUIRABLE_FIELDS,
+  checkRequiredFields,
+  configToJson,
+  loadConfig,
+  loadConfigFromDir,
+  parseConfig,
+} from "./config.js";
+import {
+  scaffoldConfig,
+  scaffoldConfigJson,
+  scaffoldState,
+  scaffoldStateJson,
+} from "./init.js";
 
 /** Frozen catalog of runtime values in the public API. */
 export const PUBLIC_API = Object.freeze({
@@ -72,6 +89,21 @@ export const PUBLIC_API = Object.freeze({
   ValidationError,
   isChecksumError,
   isValidationError,
+  // config
+  CONFIG_FILENAME,
+  ConfigError,
+  DEFAULT_CONFIG,
+  REQUIRABLE_FIELDS,
+  checkRequiredFields,
+  configToJson,
+  loadConfig,
+  loadConfigFromDir,
+  parseConfig,
+  // init
+  scaffoldConfig,
+  scaffoldConfigJson,
+  scaffoldState,
+  scaffoldStateJson,
 });
 
 /** Sorted list of public export names (types are compile-time only). */
