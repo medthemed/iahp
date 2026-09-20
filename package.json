@@ -1,6 +1,6 @@
 {
   "name": "iahp",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Inter-Agent Handshake Protocol — portable State Objects for agent hand-offs",
   "license": "MIT",
   "type": "module",

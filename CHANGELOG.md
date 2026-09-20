@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-20
+
+### Added
+
+- Typed `ValidationError` (path-qualified `issues`) and `ChecksumError` (`expected` / `actual` digests)
+- `isValidationError` / `isChecksumError` narrow helpers
+- Throwing accept path: `assertValidState`, `assertSealedState`, `assertValidEnvelope`
+- Frozen public export catalog: `PUBLIC_API`, `PUBLIC_API_NAMES`
+- Integration suite covering the full seal → validate → accept path
+
+### Changed
+
+- README library section documents typed errors and the frozen export surface
+
 ## [0.1.1] - 2026-09-17
 
 ### Added

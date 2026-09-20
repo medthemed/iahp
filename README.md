@@ -1,7 +1,7 @@
 # iahp — Inter-Agent Handshake Protocol
 
 [![CI](https://github.com/medthemed/iahp/actions/workflows/ci.yml/badge.svg)](https://github.com/medthemed/iahp/actions/workflows/ci.yml)
-[![npm version](https://img.shields.io/badge/version-0.1.1-blue.svg)](https://github.com/medthemed/iahp/releases)
+[![npm version](https://img.shields.io/badge/version-0.2.0-blue.svg)](https://github.com/medthemed/iahp/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 Portable, checksummed **State Objects** for agent-to-agent hand-offs.
@@ -110,6 +110,9 @@ import {
   verifyEnvelope,
   validateState,
   diffStates,
+  assertSealedState,
+  ValidationError,
+  ChecksumError,
 } from "iahp";
 
 const state = buildExampleState({ goal: "Draft the RFC" });
@@ -117,10 +120,23 @@ const env = createEnvelope(state, { note: "research → design" });
 const result = verifyEnvelope(env);
 if (!result.ok) throw new Error(result.message);
 
+// Throwing accept path — typed errors instead of string matching
+try {
+  const accepted = assertSealedState(state);
+  console.log("accepted", accepted.id);
+} catch (err) {
+  if (err instanceof ValidationError) console.error(err.issues);
+  else if (err instanceof ChecksumError) console.error(err.expected, err.actual);
+  else throw err;
+}
+
 const later = buildExampleState({ goal: "Ship the RFC" });
 const diff = diffStates(state, later);
 console.log(diff.summary); // "goal changed"
 ```
+
+The runtime export catalog is frozen (`PUBLIC_API` / `PUBLIC_API_NAMES`) so
+accidental mutation of the export table fails fast.
 
 ## State Object shape
 
