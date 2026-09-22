@@ -52,4 +52,23 @@ export {
   isChecksumError,
   isValidationError,
 } from "./errors.js";
+export {
+  CONFIG_FILENAME,
+  ConfigError,
+  DEFAULT_CONFIG,
+  REQUIRABLE_FIELDS,
+  checkRequiredFields,
+  configToJson,
+  loadConfig,
+  loadConfigFromDir,
+  parseConfig,
+} from "./config.js";
+export type { IahpConfig, RequirableField } from "./config.js";
+export {
+  scaffoldConfig,
+  scaffoldConfigJson,
+  scaffoldState,
+  scaffoldStateJson,
+} from "./init.js";
+export type { InitOptions } from "./init.js";
 export { PUBLIC_API, PUBLIC_API_NAMES } from "./public-api.js";
