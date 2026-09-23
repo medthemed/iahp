@@ -1,7 +1,7 @@
 # iahp — Inter-Agent Handshake Protocol
 
 [![CI](https://github.com/medthemed/iahp/actions/workflows/ci.yml/badge.svg)](https://github.com/medthemed/iahp/actions/workflows/ci.yml)
-[![npm version](https://img.shields.io/badge/version-0.2.0-blue.svg)](https://github.com/medthemed/iahp/releases)
+[![npm version](https://img.shields.io/badge/version-0.3.0-blue.svg)](https://github.com/medthemed/iahp/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 Portable, checksummed **State Objects** for agent-to-agent hand-offs.
@@ -83,6 +83,26 @@ iahp example                      # emit a sealed example state
 iahp seal <state.json>            # recompute and attach checksum
 iahp summarize <state.json>       # one-line handoff log summary
 iahp diff <a.json> <b.json>       # semantic differences [--json]
+iahp init [state.json]            # scaffold a sealed State Object
+```
+
+### Config (`iahp.config.json`)
+
+Optional project file loaded from the working directory (or `--config path`):
+
+```json
+{
+  "schema_version": "1.0.0",
+  "required_fields": ["goal", "constraints", "verified_facts"]
+}
+```
+
+`validate` fails when a required field is missing or empty. `init` applies
+the configured `schema_version` and can write a starter config with
+`--write-config`.
+
+```bash
+node dist/cli.js init draft.json --goal "Draft the RFC" --from agent-research --to agent-design
 ```
 
 Exit codes for `validate`: `0` ok, `1` schema invalid, `2` schema ok but

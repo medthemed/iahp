@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-23
+
+### Added
+
+- Optional `iahp.config.json` for default `schema_version` and `required_fields`
+- `iahp validate` enforces config-required fields
+- `iahp init` scaffolds a sealed State Object (`--goal`, `--from`, `--to`, `--write-config`)
+- Library exports: `parseConfig`, `loadConfig`, `loadConfigFromDir`, `checkRequiredFields`, `ConfigError`, `scaffoldState`, `scaffoldConfig`
+
+### Changed
+
+- README documents config format and the `init` command
+
 ## [0.2.0] - 2026-09-20
 
 ### Added
