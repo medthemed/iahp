@@ -71,4 +71,16 @@ export {
   scaffoldStateJson,
 } from "./init.js";
 export type { InitOptions } from "./init.js";
+export {
+  classifyStateData,
+  formatBatchReport,
+  listStateFiles,
+  validateBatch,
+} from "./batch.js";
+export type {
+  BatchFileResult,
+  BatchFileStatus,
+  BatchResult,
+  BatchSummary,
+} from "./batch.js";
 export { PUBLIC_API, PUBLIC_API_NAMES } from "./public-api.js";

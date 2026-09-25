@@ -78,6 +78,7 @@ npm run cli -- example
 
 ```text
 iahp validate <state.json>        # structure + checksum
+iahp validate-batch <dir>         # validate every *.json in a directory
 iahp checksum <state.json>        # print SHA-256 of canonical state
 iahp example                      # emit a sealed example state
 iahp seal <state.json>            # recompute and attach checksum
@@ -107,6 +108,39 @@ node dist/cli.js init draft.json --goal "Draft the RFC" --from agent-research --
 
 Exit codes for `validate`: `0` ok, `1` schema invalid, `2` schema ok but
 checksum mismatch.
+
+### Batch validation
+
+`validate-batch` walks a directory of `*.json` files (non-recursive), skips
+`iahp.config.json` / `package.json`, and classifies each file:
+
+```bash
+node dist/cli.js validate-batch states/
+```
+
+```text
+batch validate: states/
+  OK               a-good.json
+  SCHEMA INVALID   b-schema.json
+    - goal: expected a non-empty string
+  INTEGRITY FAILED c-integrity.json
+    checksum mismatch: expected …, got …
+  UNREADABLE       d-not-json.json
+    not valid JSON: …
+
+summary: 4 file(s) — 1 ok, 1 schema-invalid, 0 config-invalid, 1 integrity-failed, 1 unreadable
+```
+
+Exit code is `0` only when every file is `ok`; otherwise `1`. The same
+logic is available as a library:
+
+```ts
+import { validateBatch, formatBatchReport, classifyStateData } from "iahp";
+
+const batch = validateBatch("states/");
+console.log(formatBatchReport(batch));
+// classifyStateData(file, data, config) is pure — no filesystem access
+```
 
 ### Diffing two states
 
