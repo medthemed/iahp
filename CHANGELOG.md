@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-26
+
+### Added
+
+- `iahp validate-batch <dir>` — validate every `*.json` State Object in a directory
+- Per-file status: ok / schema-invalid / config-invalid / integrity-failed / unreadable
+- Summary counts printed after the per-file report
+- Library exports: `validateBatch`, `classifyStateData`, `listStateFiles`, `formatBatchReport`
+
+### Changed
+
+- README documents batch validation and the library entry points
+
 ## [0.3.0] - 2026-09-23
 
 ### Added
