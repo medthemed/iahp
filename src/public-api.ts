@@ -56,6 +56,11 @@ import {
   listStateFiles,
   validateBatch,
 } from "./batch.js";
+import {
+  OUTPUT_SCHEMA_VERSION,
+  parseOutputFormat,
+  toJsonLine,
+} from "./format.js";
 
 /** Frozen catalog of runtime values in the public API. */
 export const PUBLIC_API = Object.freeze({
@@ -115,6 +120,10 @@ export const PUBLIC_API = Object.freeze({
   formatBatchReport,
   listStateFiles,
   validateBatch,
+  // format / interop
+  OUTPUT_SCHEMA_VERSION,
+  parseOutputFormat,
+  toJsonLine,
 });
 
 /** Sorted list of public export names (types are compile-time only). */
