@@ -57,6 +57,18 @@ import {
   validateBatch,
 } from "./batch.js";
 import {
+  DEFAULT_WATCH_INTERVAL_MS,
+  diffSnapshots,
+  evaluateWatchLine,
+  evaluateWatchLines,
+  formatWatchLineResult,
+  formatWatchScan,
+  hasWatchChanges,
+  parseWatchLine,
+  runWatch,
+  snapshotDirectory,
+} from "./watch.js";
+import {
   OUTPUT_SCHEMA_VERSION,
   parseOutputFormat,
   toJsonLine,
@@ -120,6 +132,17 @@ export const PUBLIC_API = Object.freeze({
   formatBatchReport,
   listStateFiles,
   validateBatch,
+  // watch
+  DEFAULT_WATCH_INTERVAL_MS,
+  diffSnapshots,
+  evaluateWatchLine,
+  evaluateWatchLines,
+  formatWatchLineResult,
+  formatWatchScan,
+  hasWatchChanges,
+  parseWatchLine,
+  runWatch,
+  snapshotDirectory,
   // format / interop
   OUTPUT_SCHEMA_VERSION,
   parseOutputFormat,

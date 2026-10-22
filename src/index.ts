@@ -84,6 +84,28 @@ export type {
   BatchSummary,
 } from "./batch.js";
 export {
+  DEFAULT_WATCH_INTERVAL_MS,
+  diffSnapshots,
+  evaluateWatchLine,
+  evaluateWatchLines,
+  formatWatchLineResult,
+  formatWatchScan,
+  hasWatchChanges,
+  parseWatchLine,
+  runWatch,
+  snapshotDirectory,
+} from "./watch.js";
+export type {
+  FileFingerprint,
+  WatchChanges,
+  WatchLineInput,
+  WatchLineResult,
+  WatchRunOptions,
+  WatchRunSummary,
+  WatchScanEvent,
+  WatchSnapshot,
+} from "./watch.js";
+export {
   OUTPUT_SCHEMA_VERSION,
   parseOutputFormat,
   toJsonLine,
@@ -96,5 +118,7 @@ export type {
   ValidateBatchJson,
   ValidateJson,
   ValidateStatus,
+  WatchLineJson,
+  WatchScanJson,
 } from "./format.js";
 export { PUBLIC_API, PUBLIC_API_NAMES } from "./public-api.js";

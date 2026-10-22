@@ -78,11 +78,56 @@ export interface ValidateBatchJson {
   };
 }
 
+export interface WatchScanJson {
+  schema_version: typeof OUTPUT_SCHEMA_VERSION;
+  ok: boolean;
+  command: "watch";
+  event: "scan";
+  dir: string;
+  /** True for the first scan of a watch run. */
+  initial: boolean;
+  changes: {
+    added: string[];
+    removed: string[];
+    changed: string[];
+  };
+  files: Array<{
+    file: string;
+    status: ValidateStatus | "unreadable";
+    issues: ValidationIssue[];
+    message?: string;
+  }>;
+  summary: {
+    total: number;
+    ok: number;
+    schema_invalid: number;
+    config_invalid: number;
+    integrity_failed: number;
+    unreadable: number;
+  };
+}
+
+export interface WatchLineJson {
+  schema_version: typeof OUTPUT_SCHEMA_VERSION;
+  ok: boolean;
+  command: "watch";
+  event: "line";
+  /** 1-based line number in the stdin stream. */
+  line: number;
+  source: "path" | "document";
+  file: string;
+  status: ValidateStatus | "unreadable";
+  issues: ValidationIssue[];
+  message?: string;
+}
+
 export type CliJsonOutput =
   | ValidateJson
   | ChecksumJson
   | DiffJson
-  | ValidateBatchJson;
+  | ValidateBatchJson
+  | WatchScanJson
+  | WatchLineJson;
 
 /** Serialize any CLI JSON payload with the stable envelope fields. */
 export function toJsonLine(payload: CliJsonOutput): string {
