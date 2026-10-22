@@ -1,6 +1,6 @@
 {
   "name": "iahp",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Inter-Agent Handshake Protocol — portable State Objects for agent hand-offs",
   "license": "MIT",
   "type": "module",
@@ -17,6 +17,7 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "pretest": "npm run build",
     "test": "vitest run",
     "test:watch": "vitest",
     "cli": "tsx src/cli.ts",

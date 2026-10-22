@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-22
+
+### Added
+
+- `iahp watch <dir>` — continuously revalidate a directory of State Objects: polls every `--interval` ms (default 2000), fingerprints files by mtime + size, and prints a compact status line when files change; Ctrl-C exits cleanly
+- `iahp watch -` / `iahp watch --stdin` — stdin NDJSON mode: each line is a file path or a state document, with one validation result printed per line until EOF
+- `--format json` for `watch` in both modes, using the stable envelope (`WatchScanJson` scan events and `WatchLineJson` per-line results)
+- Library exports: `runWatch`, `snapshotDirectory`, `diffSnapshots`, `hasWatchChanges`, `parseWatchLine`, `evaluateWatchLine`, `evaluateWatchLines`, `formatWatchScan`, `formatWatchLineResult`, `DEFAULT_WATCH_INTERVAL_MS`
+
+### Fixed
+
+- `checksum`, `seal`, and `summarize` no longer crash with an uncaught `TypeError` on a top-level non-object JSON payload (`null`), and no longer silently checksum/seal arrays or scalars as if they were State Objects — they now fail with a clear `does not contain a JSON object` error; `summarize` also validates the payload before summarizing instead of crashing on non-state objects
+- `npm test` on a fresh clone no longer fails 9 CLI tests when `dist/` has not been built yet — a `pretest` hook builds first
+
 ## [0.5.0] - 2026-09-29
 
 ### Added

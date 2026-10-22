@@ -1,7 +1,7 @@
 # iahp — Inter-Agent Handshake Protocol
 
 [![CI](https://github.com/medthemed/iahp/actions/workflows/ci.yml/badge.svg)](https://github.com/medthemed/iahp/actions/workflows/ci.yml)
-[![npm version](https://img.shields.io/badge/version-0.5.0-blue.svg)](https://github.com/medthemed/iahp/releases)
+[![npm version](https://img.shields.io/badge/version-0.6.0-blue.svg)](https://github.com/medthemed/iahp/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 Portable, checksummed **State Objects** for agent-to-agent hand-offs.
@@ -79,6 +79,8 @@ npm run cli -- example
 ```text
 iahp validate <state.json>        # structure + checksum [--format json]
 iahp validate-batch <dir>         # validate every *.json in a directory [--format json]
+iahp watch <dir>                  # re-validate whenever files change [--interval MS] [--format json]
+iahp watch -                      # NDJSON from stdin: a path or state document per line [--format json]
 iahp checksum <state.json>        # print SHA-256 of canonical state [--format json]
 iahp example                      # emit a sealed example state
 iahp seal <state.json>            # recompute and attach checksum
@@ -142,6 +144,48 @@ console.log(formatBatchReport(batch));
 // classifyStateData(file, data, config) is pure — no filesystem access
 ```
 
+### Watching a directory (and stdin)
+
+`watch` keeps a directory under continuous validation during local
+development. It polls every `--interval` milliseconds (default `2000`),
+fingerprints each `*.json` file by mtime + size, and prints a compact
+status line **only when files change** (plus one initial scan). Ctrl-C
+exits cleanly.
+
+```bash
+node dist/cli.js watch states/
+node dist/cli.js watch states/ --interval 500 --format json
+```
+
+```text
+[2026-10-22T00:00:00.000Z] watch: 4 file(s) — 4 ok, 0 schema-invalid, 0 config-invalid, 0 integrity-failed, 0 unreadable · initial scan
+[2026-10-22T00:00:04.000Z] watch: 4 file(s) — 3 ok, 0 schema-invalid, 0 config-invalid, 1 integrity-failed, 0 unreadable · changed: a-good.json (modified)
+```
+
+Stdin NDJSON mode reads one entry per line until EOF — each line is
+either a path to a state file or a state document itself — and prints
+one result per line. Exit code is `0` only when every line is `ok`.
+
+```bash
+printf '%s\n' states/a.json "$(cat states/b.json)" | node dist/cli.js watch -
+node dist/cli.js watch --stdin --format json < lines.ndjson
+```
+
+The watch loop is also a library API, so tests and embedders can drive
+it without spawning the CLI:
+
+```ts
+import { runWatch, snapshotDirectory, diffSnapshots, parseWatchLine, evaluateWatchLines } from "iahp";
+
+const summary = await runWatch("states/", {
+  intervalMs: 2000,
+  maxScans: 10, // omit + pass an AbortSignal to run until stopped
+  onEvent: (event) => console.log(event.result.summary, event.changes),
+});
+
+const results = evaluateWatchLines([ "states/a.json", JSON.stringify(state) ]);
+```
+
 ### Diffing two states
 
 ```bash
@@ -157,8 +201,8 @@ on purpose so only semantic changes surface.
 
 ## JSON pipe contract
 
-`validate`, `validate-batch`, `checksum`, and `diff` accept `--format json`
-(`--json` is a shorthand). Every payload is a small envelope:
+`validate`, `validate-batch`, `checksum`, `diff`, and `watch` accept
+`--format json` (`--json` is a shorthand). Every payload is a small envelope:
 
 ```json
 {
@@ -179,6 +223,8 @@ schema version. Exit codes are unchanged by `--format json`.
 | `validate-batch` | `dir`, `files[]`, `summary` |
 | `checksum` | `file`, `checksum`, `schema_ok`, `issues` |
 | `diff` | `file_a`, `file_b`, `equal`, `diff` (full `StateDiff`) |
+| `watch` (directory) | one envelope per scan: `event: "scan"`, `dir`, `initial`, `changes` (`added`/`removed`/`changed`), `files[]`, `summary` |
+| `watch` (stdin) | one envelope per line: `event: "line"`, `line`, `source` (`path` \| `document`), `file`, `status`, `issues` |
 
 ```bash
 # pipe-friendly: jq exits non-zero when ok is false

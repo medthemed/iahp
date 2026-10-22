@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { createInterface } from "node:readline";
 import { formatBatchReport, validateBatch, type BatchResult } from "./batch.js";
 import { computeChecksum } from "./checksum.js";
 import {
@@ -23,7 +24,17 @@ import {
   type ValidateBatchJson,
   type ValidateJson,
   type ValidateStatus,
+  type WatchLineJson,
+  type WatchScanJson,
 } from "./format.js";
+import {
+  DEFAULT_WATCH_INTERVAL_MS,
+  evaluateWatchLine,
+  formatWatchLineResult,
+  formatWatchScan,
+  snapshotDirectory,
+  runWatch,
+} from "./watch.js";
 import { scaffoldConfigJson, scaffoldStateJson } from "./init.js";
 import { formatIssues, validateState, type ValidationIssue } from "./validate.js";
 
@@ -32,6 +43,11 @@ const USAGE = `iahp — Inter-Agent Handshake Protocol
 Usage:
   iahp validate <state.json>   Validate structure (and checksum if present)
   iahp validate-batch <dir>    Validate every *.json State Object in a directory
+  iahp watch <dir>             Re-validate a directory whenever its files
+                               change [--interval MS, default 2000]
+  iahp watch -                 Read paths / state documents (NDJSON) from
+                               stdin, validating each line until EOF
+                               (same as iahp watch --stdin)
   iahp checksum <state.json>   Print SHA-256 checksum of canonical state
   iahp example                 Print an example sealed state object
   iahp seal <state.json>       Print state with a fresh checksum
@@ -76,6 +92,26 @@ function readJson(path: string): unknown {
   }
 }
 
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+/**
+ * Read a JSON file that must contain a top-level object.
+ * Commands that treat the payload as a State Object (checksum, seal,
+ * summarize) use this instead of readJson: a bare `null`, array, or
+ * scalar is not a state, and feeding one to the checksum/envelope code
+ * used to crash with an uncaught TypeError (or, for arrays, silently
+ * produce a meaningless checksum).
+ */
+function readJsonObject(path: string): Record<string, unknown> {
+  const data = readJson(path);
+  if (!isRecord(data)) {
+    fail(`error: ${path} does not contain a JSON object`);
+  }
+  return data;
+}
+
 interface ParsedArgs {
   command: string;
   positionals: string[];
@@ -92,14 +128,15 @@ function parseArgs(argv: string[]): ParsedArgs {
     if (a === "-h" || a === "--help") {
       process.stdout.write(USAGE);
       process.exit(0);
-    } else if (a === "--json" || a === "--write-config") {
+    } else if (a === "--json" || a === "--write-config" || a === "--stdin") {
       flags[a.slice(2)] = true;
     } else if (
       a === "--goal" ||
       a === "--from" ||
       a === "--to" ||
       a === "--config" ||
-      a === "--format"
+      a === "--format" ||
+      a === "--interval"
     ) {
       const v = argv[++i];
       if (v === undefined) fail(`error: ${a} requires a value`);
@@ -139,8 +176,109 @@ function resolveConfig(explicitPath: string | undefined): IahpConfig {
   }
 }
 
-function emitJson(payload: ValidateJson | ChecksumJson | DiffJson | ValidateBatchJson): void {
+function emitJson(
+  payload:
+    | ValidateJson
+    | ChecksumJson
+    | DiffJson
+    | ValidateBatchJson
+    | WatchScanJson
+    | WatchLineJson,
+): void {
   process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
+}
+
+async function watchDirectory(
+  dir: string,
+  format: OutputFormat,
+  config: IahpConfig,
+  intervalMs: number,
+): Promise<void> {
+  let initialFiles: number;
+  try {
+    initialFiles = snapshotDirectory(dir).size;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    fail(`error: ${msg}`);
+  }
+  if (initialFiles === 0) {
+    fail(`error: no .json State Objects found in ${dir}`);
+  }
+  const controller = new AbortController();
+  process.on("SIGINT", () => controller.abort());
+  process.stderr.write(
+    `watching ${dir} every ${intervalMs}ms — Ctrl-C to stop\n`,
+  );
+  await runWatch(dir, {
+    intervalMs,
+    config,
+    signal: controller.signal,
+    onEvent: (event) => {
+      if (format === "json") {
+        const payload: WatchScanJson = {
+          schema_version: OUTPUT_SCHEMA_VERSION,
+          ok: event.result.ok,
+          command: "watch",
+          event: "scan",
+          dir: event.dir,
+          initial: event.initial,
+          changes: event.changes,
+          files: event.result.files.map((f) => ({
+            file: f.file,
+            status: f.status as ValidateStatus | "unreadable",
+            issues: f.issues,
+            ...(f.message !== undefined ? { message: f.message } : {}),
+          })),
+          summary: event.result.summary,
+        };
+        emitJson(payload);
+      } else {
+        process.stdout.write(`${formatWatchScan(event)}\n`);
+      }
+    },
+  });
+  process.stderr.write("watch stopped\n");
+}
+
+async function watchStdin(
+  format: OutputFormat,
+  config: IahpConfig,
+): Promise<void> {
+  const rl = createInterface({ input: process.stdin, crlfDelay: Infinity });
+  let lineNo = 0;
+  let seen = 0;
+  let anyBad = false;
+  for await (const line of rl) {
+    lineNo++;
+    const result = evaluateWatchLine(line, lineNo, config);
+    if (!result) continue;
+    seen++;
+    if (result.status !== "ok") anyBad = true;
+    if (format === "json") {
+      const payload: WatchLineJson = {
+        schema_version: OUTPUT_SCHEMA_VERSION,
+        ok: result.status === "ok",
+        command: "watch",
+        event: "line",
+        line: result.line,
+        source: result.source,
+        file: result.file,
+        status: result.status,
+        issues: result.issues,
+        ...(result.message !== undefined ? { message: result.message } : {}),
+      };
+      emitJson(payload);
+    } else {
+      process.stdout.write(`${formatWatchLineResult(result)}\n`);
+      if (result.issues.length > 0) {
+        process.stdout.write(`${formatIssues(result.issues)}\n`);
+      }
+    }
+  }
+  if (seen === 0) {
+    fail("error: no input received on stdin");
+  }
+  if (anyBad) process.exit(1);
 }
 
 function main(argv: string[]): void {
@@ -279,10 +417,39 @@ function main(argv: string[]): void {
       if (!batch.ok) process.exit(1);
       return;
     }
+    case "watch": {
+      const target = positionals[0];
+      const stdinMode = flags.stdin === true || target === "-";
+      let intervalMs = DEFAULT_WATCH_INTERVAL_MS;
+      if (typeof flags.interval === "string") {
+        intervalMs = Number(flags.interval);
+        if (!Number.isFinite(intervalMs) || intervalMs <= 0) {
+          fail("error: --interval must be a positive number of milliseconds");
+        }
+      }
+      const config = resolveConfig(
+        typeof flags.config === "string" ? flags.config : undefined,
+      );
+      if (stdinMode) {
+        watchStdin(format, config).catch((err) => {
+          const msg = err instanceof Error ? err.message : String(err);
+          fail(`error: ${msg}`);
+        });
+        return;
+      }
+      if (!target) {
+        fail("error: watch requires a directory path (or '-' / --stdin)");
+      }
+      watchDirectory(target, format, config, intervalMs).catch((err) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        fail(`error: ${msg}`);
+      });
+      return;
+    }
     case "checksum": {
       const file = positionals[0];
       if (!file) fail("error: checksum requires a file path");
-      const data = readJson(file);
+      const data = readJsonObject(file);
       const result = validateState(data);
       const checksum = computeChecksum(data as never);
 
@@ -321,7 +488,7 @@ function main(argv: string[]): void {
     case "seal": {
       const file = positionals[0];
       if (!file) fail("error: seal requires a file path");
-      const data = readJson(file) as Record<string, unknown>;
+      const data = readJsonObject(file);
       const { checksum: _drop, ...payload } = data;
       const sealed = createEnvelope(payload as never);
       process.stdout.write(`${JSON.stringify(sealed.state, null, 2)}\n`);
@@ -330,9 +497,16 @@ function main(argv: string[]): void {
     case "summarize": {
       const file = positionals[0];
       if (!file) fail("error: summarize requires a file path");
-      const data = readJson(file) as Record<string, unknown>;
+      const data = readJsonObject(file);
       // Accept either a bare state or an envelope.
       const stateish = (data.state as unknown) ?? data;
+      // Summarizing assumes a full State Object; validate first so a
+      // non-state payload fails cleanly instead of crashing the summarizer.
+      const check = validateState(stateish);
+      if (!check.ok) {
+        process.stderr.write(`INVALID\n${formatIssues(check.issues)}\n`);
+        process.exit(1);
+      }
       const env = createEnvelope(stateish as never, {
         created_at: typeof data.created_at === "string" ? data.created_at : undefined,
       });
